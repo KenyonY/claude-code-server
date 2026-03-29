@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.venv/
+node_modules/
+frontend/dist/
+claude_code_server/static/
+.env
+*.log
