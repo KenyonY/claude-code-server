@@ -89,6 +89,11 @@ def main() -> None:
         default=None,
         help="Read append system prompt from file",
     )
+    parser.add_argument(
+        "--password",
+        default=os.environ.get("CCS_PASSWORD", "yao"),
+        help="Login password (default: yao, env: CCS_PASSWORD)",
+    )
     args = parser.parse_args()
 
     system_prompt = args.system_prompt
@@ -106,6 +111,7 @@ def main() -> None:
         system_prompt=system_prompt,
         append_system_prompt=append_system_prompt,
         max_turns=args.max_turns,
+        password=args.password,
     )
 
     app = create_app(config)

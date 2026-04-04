@@ -19,8 +19,9 @@ import uuid
 from pathlib import Path
 from typing import Callable
 
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Request, HTTPException, Depends
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from .agent import ClaudeAgent
 from .models import AgentConfig, ChatRequest
@@ -43,6 +44,28 @@ def create_router(
         upload_dir: Directory for uploaded files. Defaults to {working_dir}/storage/chat_uploads.
     """
     router = APIRouter()
+    _tokens: set[str] = set()
+
+    class LoginRequest(BaseModel):
+        password: str
+
+    def _require_auth(request: Request) -> None:
+        auth = request.headers.get("authorization", "")
+        if not auth.startswith("Bearer ") or auth[7:] not in _tokens:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+
+    @router.post("/login")
+    async def login(req: LoginRequest):
+        cfg = config or _DEFAULT_CONFIG
+        if req.password != cfg.password:
+            raise HTTPException(status_code=401, detail="Wrong password")
+        token = uuid.uuid4().hex
+        _tokens.add(token)
+        return {"token": token}
+
+    @router.get("/auth/check")
+    async def auth_check(_: None = Depends(_require_auth)):
+        return {"ok": True}
 
     def _get_config(req: ChatRequest) -> AgentConfig:
         if config_factory:
@@ -58,7 +81,7 @@ def create_router(
         return p
 
     @router.post("/chat")
-    async def chat(req: ChatRequest):
+    async def chat(req: ChatRequest, _: None = Depends(_require_auth)):
         """SSE streaming chat endpoint."""
         cfg = _get_config(req)
         # Request-level system prompt overrides server config
@@ -87,7 +110,7 @@ def create_router(
         return StreamingResponse(event_stream(), media_type="text/event-stream")
 
     @router.post("/upload")
-    async def upload_file(file: UploadFile = File(...)):
+    async def upload_file(file: UploadFile = File(...), _: None = Depends(_require_auth)):
         """Upload a file, return server path + data preview."""
         cfg = config or _DEFAULT_CONFIG
         dest = _get_upload_dir(cfg)
@@ -120,7 +143,7 @@ def create_router(
         return result
 
     @router.get("/files/{filename}")
-    async def serve_file(filename: str):
+    async def serve_file(filename: str, _: None = Depends(_require_auth)):
         """Serve uploaded files (images, etc.)."""
         from fastapi.responses import FileResponse
 

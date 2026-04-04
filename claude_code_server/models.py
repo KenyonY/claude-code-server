@@ -22,6 +22,7 @@ class AgentConfig(BaseModel):
     max_turns: int = 20
     permission_mode: str = "bypassPermissions"
     env: dict[str, str] | None = None
+    password: str = "yao"
 
 
 class ChatRequest(BaseModel):
