@@ -8,7 +8,15 @@
     "url": "https://github.com/KenyonY/claude-code-server",
     "directory": "frontend"
   },
-  "keywords": ["react", "chat", "claude", "claude-code", "sse", "streaming", "ui"],
+  "keywords": [
+    "react",
+    "chat",
+    "claude",
+    "claude-code",
+    "sse",
+    "streaming",
+    "ui"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -26,6 +34,7 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "tsc -b && vite build",
+    "build:app": "vite build --config vite.app.config.ts",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
@@ -49,6 +58,8 @@
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^5.1.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "tailwindcss": "^4.1.18",
     "typescript": "~5.9.3",
     "vite": "^7.2.4",
