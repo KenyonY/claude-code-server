@@ -32,3 +32,7 @@ class ChatRequest(BaseModel):
     session_id: str | None = None
     system_prompt: str | None = None
     append_system_prompt: str | None = None
+
+
+class LoginRequest(BaseModel):
+    password: str

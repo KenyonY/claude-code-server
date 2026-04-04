@@ -21,10 +21,9 @@ from typing import Callable
 
 from fastapi import APIRouter, UploadFile, File, Request, HTTPException, Depends
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 
 from .agent import ClaudeAgent
-from .models import AgentConfig, ChatRequest
+from .models import AgentConfig, ChatRequest, LoginRequest
 
 # Default config
 _DEFAULT_CONFIG = AgentConfig()
@@ -45,9 +44,6 @@ def create_router(
     """
     router = APIRouter()
     _tokens: set[str] = set()
-
-    class LoginRequest(BaseModel):
-        password: str
 
     def _require_auth(request: Request) -> None:
         auth = request.headers.get("authorization", "")
