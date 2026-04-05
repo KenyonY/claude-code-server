@@ -47,8 +47,12 @@ def create_router(
 
     def _require_auth(request: Request) -> None:
         auth = request.headers.get("authorization", "")
-        if not auth.startswith("Bearer ") or auth[7:] not in _tokens:
-            raise HTTPException(status_code=401, detail="Unauthorized")
+        if auth.startswith("Bearer ") and auth[7:] in _tokens:
+            return
+        token = request.query_params.get("token", "")
+        if token and token in _tokens:
+            return
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     @router.post("/login")
     async def login(req: LoginRequest):

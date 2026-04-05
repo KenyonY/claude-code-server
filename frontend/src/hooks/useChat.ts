@@ -466,7 +466,11 @@ export function useChat(config: ChatConfig): UseChatReturn {
         preview: data.preview,
         total_lines: data.total_lines,
         isImage: data.type === 'image',
-        imageUrl: data.url ? config.apiBase.replace(/\/$/, '') + data.url : undefined,
+        imageUrl: data.url ? (() => {
+          const base = config.apiBase.replace(/\/$/, '') + data.url
+          const t = config.getHeaders?.()?.['Authorization']?.slice(7)
+          return t ? `${base}?token=${t}` : base
+        })() : undefined,
       }
       return uploaded
     } catch (e) {
