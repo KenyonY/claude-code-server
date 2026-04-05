@@ -83,8 +83,8 @@ export default function Chat({
 
   const {
     messages, isLoading, costInfo, scrollKey,
-    loopState, loopCountdown,
-    send, cancel, newChat, compact,
+    loopState, loopCountdown, canRetry,
+    send, retry, cancel, newChat, compact,
     startLoop, stopLoop, uploadFile, exportMarkdown,
   } = useChat(mergedConfig)
 
@@ -244,7 +244,7 @@ export default function Chat({
         </div>
       ) : (
         <>
-          <ChatMessages messages={messages} isLoading={isLoading} scrollKey={scrollKey} costInfo={costInfo} />
+          <ChatMessages messages={messages} isLoading={isLoading} scrollKey={scrollKey} costInfo={costInfo} canRetry={canRetry} onRetry={retry} />
           <ChatInput
             onSend={(text, files) => send(text, files)}
             isLoading={isLoading}

@@ -9,7 +9,7 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import {
   ChevronRight, Loader2, AlertCircle, CheckCircle2,
   Paperclip, ChevronDown, ChevronUp, Terminal, FileText,
-  Search, Brain, Copy, Check, X,
+  Search, Brain, Copy, Check, X, RotateCcw,
 } from 'lucide-react'
 import type { ChatMessage, ChatFileAttachment, CostInfo } from '../types'
 
@@ -417,9 +417,11 @@ export interface ChatMessagesProps {
   isLoading: boolean
   scrollKey?: number
   costInfo?: CostInfo | null
+  canRetry?: boolean
+  onRetry?: () => void
 }
 
-export default function ChatMessages({ messages, isLoading, scrollKey, costInfo }: ChatMessagesProps) {
+export default function ChatMessages({ messages, isLoading, scrollKey, costInfo, canRetry, onRetry }: ChatMessagesProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const userScrolledRef = useRef(false)
@@ -517,6 +519,18 @@ export default function ChatMessages({ messages, isLoading, scrollKey, costInfo 
         })}
 
         {costInfo && !isLoading && <CostBadge cost={costInfo.cost} durationMs={costInfo.durationMs} inputTokens={costInfo.inputTokens} outputTokens={costInfo.outputTokens} contextWindow={costInfo.contextWindow} />}
+
+        {canRetry && !isLoading && onRetry && (
+          <div className="flex justify-center py-2">
+            <button
+              onClick={onRetry}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted border rounded-lg transition-colors"
+            >
+              <RotateCcw className="size-3" />
+              Retry
+            </button>
+          </div>
+        )}
 
         {isLoading && !hasStreamingMsg && messages.length > 0 && messages[messages.length - 1]?.role === 'user' && (
           <div className="flex gap-3">

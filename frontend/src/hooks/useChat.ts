@@ -46,7 +46,9 @@ export interface UseChatReturn {
   loopState: LoopState | null
   loopCountdown: string
   activeConversationId: string | null
+  canRetry: boolean
   send: (text: string, files?: UploadedFile[]) => Promise<void>
+  retry: () => void
   cancel: () => void
   clear: () => void
   newChat: () => void
@@ -64,8 +66,10 @@ export function useChat(config: ChatConfig): UseChatReturn {
   const [scrollKey, setScrollKey] = useState(0)
   const [loopState, setLoopState] = useState<LoopState | null>(null)
   const [loopCountdown, setLoopCountdown] = useState('')
+  const [canRetry, setCanRetry] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const isLoadingRef = useRef(false)
+  const lastSentRef = useRef<{ text: string; files: UploadedFile[] } | null>(null)
 
   useEffect(() => { isLoadingRef.current = isLoading }, [isLoading])
 
@@ -164,6 +168,10 @@ export function useChat(config: ChatConfig): UseChatReturn {
       agentContent = agentContent ? `${agentContent}\n\n${fileInfo}` : fileInfo
     }
 
+    // Track for retry
+    lastSentRef.current = { text, files }
+    setCanRetry(false)
+
     const chatFiles = files.length > 0
       ? files.map(f => ({
           name: f.name, size: f.size, preview: f.preview, total_lines: f.total_lines,
@@ -242,8 +250,13 @@ export function useChat(config: ChatConfig): UseChatReturn {
       })
 
       if (!resp.ok) {
+        if (resp.status === 401 && config.onAuthError) {
+          config.onAuthError()
+          return
+        }
         const errText = await resp.text()
         updateMessages(prev => [...prev, { role: 'assistant', content: `Request failed: ${errText}` }])
+        setCanRetry(true)
         return
       }
 
@@ -333,12 +346,14 @@ export function useChat(config: ChatConfig): UseChatReturn {
                 finalizeText()
                 updateCostInfo(event)
                 notifyIfHidden()
+                lastSentRef.current = null
                 break
 
               case 'error':
                 finalizeThinking()
                 finalizeText()
                 updateMessages(prev => [...prev, { role: 'assistant', content: `Error: ${event.message}` }])
+                setCanRetry(true)
                 break
             }
           }
@@ -350,11 +365,15 @@ export function useChat(config: ChatConfig): UseChatReturn {
         if (!controller.signal.aborted) {
           addToast({ type: 'error', message: 'Request timed out (5 min)' })
           updateMessages(prev => [...prev, { role: 'assistant', content: 'Request timed out after 5 minutes.' }])
+          setCanRetry(true)
         }
         return
       }
       updateMessages(prev => [...prev, { role: 'assistant', content: `Request error: ${e}` }])
+      setCanRetry(true)
     } finally {
+      // Clean up any stuck streaming state
+      updateMessages(prev => prev.map(m => m.isStreaming ? { ...m, isStreaming: false } : m))
       setIsLoading(false)
       abortRef.current = null
       useChatStore.getState().registerCancel(null)
@@ -363,6 +382,22 @@ export function useChat(config: ChatConfig): UseChatReturn {
 
   const send = useCallback(async (text: string, files: UploadedFile[] = []) => {
     await doSend(text, files)
+  }, [doSend])
+
+  const retry = useCallback(() => {
+    if (!lastSentRef.current) return
+    const { text, files } = lastSentRef.current
+    setCanRetry(false)
+    // Remove the error message(s) added after the last user message
+    useChatStore.getState().setMessages(prev => {
+      let lastUserIdx = -1
+      for (let i = prev.length - 1; i >= 0; i--) {
+        if (prev[i].role === 'user') { lastUserIdx = i; break }
+      }
+      if (lastUserIdx === -1) return prev
+      return prev.slice(0, lastUserIdx) // remove user msg too, doSend will re-add it
+    })
+    doSend(text, files)
   }, [doSend])
 
   const newChat = useCallback(() => {
@@ -421,6 +456,7 @@ export function useChat(config: ChatConfig): UseChatReturn {
         })
       }
       const resp = await fetch(config.uploadUrl, { method: 'POST', headers, body: formData })
+      if (resp.status === 401 && config.onAuthError) { config.onAuthError(); return null }
       if (!resp.ok) throw new Error('Upload failed')
       const data = await resp.json()
       const uploaded: UploadedFile = {
@@ -473,7 +509,8 @@ export function useChat(config: ChatConfig): UseChatReturn {
     messages, isLoading, costInfo, scrollKey,
     loopState, loopCountdown,
     activeConversationId: activeId,
-    send, cancel, clear: store.clear, newChat, compact,
+    canRetry,
+    send, retry, cancel, clear: store.clear, newChat, compact,
     startLoop, stopLoop, uploadFile, exportMarkdown,
   }
 }

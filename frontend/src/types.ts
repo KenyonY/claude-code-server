@@ -84,6 +84,8 @@ export interface ChatConfig {
   systemPrompt?: string
   /** Append to CC's default system prompt (keeps tools/rules) */
   appendSystemPrompt?: string
+  /** Callback when authentication fails (e.g. 401 response) */
+  onAuthError?: () => void
 }
 
 /* ==================== Default Slash Commands ==================== */
