@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { ChatMessage, ChatConfig, UploadedFile, CostInfo } from '../types'
 import { parseSSEEvent } from '../types'
 import { useChatStore, readConversationMessages, writeConversationMessages } from '../store/chat'
@@ -62,6 +63,7 @@ export interface UseChatReturn {
 export function useChat(config: ChatConfig): UseChatReturn {
   const store = useChatStore()
   const { messages, costInfo, setCostInfo, activeId, createConversation } = store
+  const qc = useQueryClient()
   const [isLoading, setIsLoading] = useState(false)
   const [scrollKey, setScrollKey] = useState(0)
   const [loopState, setLoopState] = useState<LoopState | null>(null)
@@ -132,14 +134,15 @@ export function useChat(config: ChatConfig): UseChatReturn {
       if (useChatStore.getState().activeId === targetConvId) {
         useChatStore.getState().setSessionId(id)
       } else if (targetConvId) {
-        // Write sessionId to message storage
+        // Write sessionId to background scratch
         const { messages: msgs } = readConversationMessages(targetConvId)
         writeConversationMessages(targetConvId, msgs, id)
         // Also update conversation metadata so switchConversation picks it up
-        const { conversations } = useChatStore.getState()
-        const updated = conversations.map(c => c.id === targetConvId ? { ...c, sessionId: id } : c)
-        try { localStorage.setItem('ccs_conversations', JSON.stringify(updated)) } catch { /* best-effort */ }
-        useChatStore.setState({ conversations: updated })
+        useChatStore.setState((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === targetConvId ? { ...c, sessionId: id } : c,
+          ),
+        }))
       }
     }
 
@@ -347,6 +350,8 @@ export function useChat(config: ChatConfig): UseChatReturn {
                 updateCostInfo(event)
                 notifyIfHidden()
                 lastSentRef.current = null
+                // Refresh the sidebar list (new session row, updated counters).
+                qc.invalidateQueries({ queryKey: ['sessions'] })
                 break
 
               case 'error':
@@ -378,7 +383,7 @@ export function useChat(config: ChatConfig): UseChatReturn {
       abortRef.current = null
       useChatStore.getState().registerCancel(null)
     }
-  }, [config, setCostInfo, cancel])
+  }, [config, setCostInfo, cancel, qc])
 
   const send = useCallback(async (text: string, files: UploadedFile[] = []) => {
     await doSend(text, files)

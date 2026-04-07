@@ -4,8 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Claude Code Chat</title>
-  <script type="module" crossorigin src="/assets/index-CwEgjlGT.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-BkF1vpUT.css">
+  <script>
+    // Apply theme synchronously before React mounts to avoid FOUC and to keep
+    // dark mode active on routes (e.g. /login) that don't render AppLayout's useTheme.
+    (function () {
+      var t = localStorage.getItem('theme') || 'system'
+      var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      if (dark) document.documentElement.classList.add('dark')
+    })()
+  </script>
+  <script type="module" crossorigin src="/assets/index-hZKOa0tx.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-CKllgKvj.css">
 </head>
 <body>
   <div id="root"></div>

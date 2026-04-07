@@ -32,14 +32,25 @@ class ClaudeAgent:
         prompt: str,
         session_id: str | None = None,
         config: AgentConfig | None = None,
+        is_new: bool | None = None,
     ) -> AsyncGenerator[dict, None]:
-        """Run an agent conversation, yielding SSE events."""
+        """Run an agent conversation, yielding SSE events.
+
+        Args:
+            prompt: The user message.
+            session_id: Existing session ID to reuse, or None to generate one.
+            config: Per-call config override.
+            is_new: Explicitly mark whether this is a fresh session (uses --session-id)
+                    or a resume (uses --resume). When None, defaults to the legacy
+                    behavior: a passed session_id is treated as a resume.
+        """
         cfg = config or _DEFAULT_CONFIG
-        is_resume = session_id is not None
+        if is_new is None:
+            is_new = session_id is None
         sid = session_id or str(uuid.uuid4())
 
         try:
-            cmd = _build_command(prompt, sid, cfg, resume=is_resume)
+            cmd = _build_command(prompt, sid, cfg, resume=not is_new)
 
             env = os.environ.copy()
             if cfg.env:

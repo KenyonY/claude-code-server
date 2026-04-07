@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { Plus, Trash2, MessageSquare, PanelLeftClose, PanelLeft, Bot, Menu, Search } from 'lucide-react'
 import { useChatStore } from '../store/chat'
+import {
+  useSessions,
+  useRenameSession,
+  useDeleteSession,
+} from '../app/hooks/sessions'
 import type { Conversation } from '../types'
 
 export interface SidebarProps {
@@ -41,7 +46,24 @@ function groupByDate(conversations: Conversation[]): { label: string; items: Con
 /* ==================== Component ==================== */
 
 export default function Sidebar({ collapsed = false, onToggle, brandName = 'Claude Code', mobile = false }: SidebarProps) {
-  const { conversations, activeId, messages, createConversation, switchConversation, deleteConversation, renameConversation } = useChatStore()
+  const conversations = useChatStore((s) => s.conversations)
+  const activeId = useChatStore((s) => s.activeId)
+  const messages = useChatStore((s) => s.messages)
+  const createConversation = useChatStore((s) => s.createConversation)
+  const switchConversation = useChatStore((s) => s.switchConversation)
+  const removeConversation = useChatStore((s) => s.removeConversation)
+  const renameConversationLocal = useChatStore((s) => s.renameConversation)
+  const setConversationsFromBackend = useChatStore((s) => s.setConversationsFromBackend)
+
+  // Hydrate from backend.
+  const { data: backendSessions } = useSessions()
+  useEffect(() => {
+    if (backendSessions) setConversationsFromBackend(backendSessions)
+  }, [backendSessions, setConversationsFromBackend])
+
+  const renameMutation = useRenameSession()
+  const deleteMutation = useDeleteSession()
+
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -80,8 +102,15 @@ export default function Sidebar({ collapsed = false, onToggle, brandName = 'Clau
   }
 
   const handleRenameSubmit = (id: string) => {
-    if (editName.trim()) renameConversation(id, editName.trim())
+    const name = editName.trim()
     setEditingId(null)
+    if (!name) return
+    // Optimistic local update; persist to backend if it's not a draft conversation.
+    renameConversationLocal(id, name)
+    const isPersisted = (backendSessions ?? []).some((s) => s.id === id)
+    if (isPersisted) {
+      renameMutation.mutate({ sid: id, title: name })
+    }
   }
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
@@ -90,9 +119,13 @@ export default function Sidebar({ collapsed = false, onToggle, brandName = 'Clau
   }
 
   const confirmDelete = () => {
-    if (deleteTargetId) {
-      deleteConversation(deleteTargetId)
-      setDeleteTargetId(null)
+    if (!deleteTargetId) return
+    const id = deleteTargetId
+    setDeleteTargetId(null)
+    const isPersisted = (backendSessions ?? []).some((s) => s.id === id)
+    removeConversation(id)
+    if (isPersisted) {
+      deleteMutation.mutate(id)
     }
   }
 

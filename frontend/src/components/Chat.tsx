@@ -37,6 +37,12 @@ export interface ChatProps extends ChatConfig {
   placeholder?: string
   /** Callback to toggle sidebar (for Ctrl+/ shortcut) */
   onToggleSidebar?: () => void
+  /**
+   * Override the gear-icon click. When provided, the inline settings modal
+   * is bypassed entirely (use this to navigate to a dedicated settings route).
+   * When omitted, the inline modal is shown for backward compatibility.
+   */
+  onOpenSettings?: () => void
 }
 
 /** Poll backend health every 15s */
@@ -67,6 +73,7 @@ export default function Chat({
   acceptFileTypes,
   placeholder,
   onToggleSidebar,
+  onOpenSettings,
   ...config
 }: ChatProps) {
   const [showSettings, setShowSettings] = useState(false)
@@ -89,6 +96,10 @@ export default function Chat({
   } = useChat(mergedConfig)
 
   const openSettings = () => {
+    if (onOpenSettings) {
+      onOpenSettings()
+      return
+    }
     setSpDraft(promptSettings.systemPrompt)
     setAspDraft(promptSettings.appendSystemPrompt)
     setShowSettings(true)
@@ -188,26 +199,33 @@ export default function Chat({
       )}
 
       {/* Status bar */}
-      <div className="absolute top-3 right-4 z-10 flex items-center gap-2">
+      <div className="absolute top-3 right-4 z-10 flex items-center gap-1.5">
         {/* Settings */}
         <button
           onClick={openSettings}
-          className={`p-1 transition-colors rounded ${promptSettings.systemPrompt || promptSettings.appendSystemPrompt ? 'text-primary' : 'text-muted-foreground/50 hover:text-foreground'}`}
+          className={`size-7 inline-flex items-center justify-center rounded-md transition-colors hover:bg-muted ${promptSettings.systemPrompt || promptSettings.appendSystemPrompt ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           title="System Prompt Settings"
         >
-          <Settings className="size-3.5" />
+          <Settings className="size-4" />
         </button>
 
         {/* Export */}
         {messages.length > 0 && (
-          <button onClick={exportMarkdown} className="p-1 text-muted-foreground/50 hover:text-foreground transition-colors rounded" title="Export as Markdown">
-            <Download className="size-3.5" />
+          <button
+            onClick={exportMarkdown}
+            className="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title="Export as Markdown"
+          >
+            <Download className="size-4" />
           </button>
         )}
 
         {/* Connection status */}
-        <div className={`flex items-center gap-1 text-[11px] ${connected ? 'text-emerald-500' : 'text-destructive'}`} title={connected ? 'Connected' : 'Disconnected'}>
-          {connected ? <Wifi className="size-3" /> : <WifiOff className="size-3" />}
+        <div
+          className={`size-7 inline-flex items-center justify-center rounded-md ${connected ? 'text-emerald-500' : 'text-destructive'}`}
+          title={connected ? 'Connected' : 'Disconnected'}
+        >
+          {connected ? <Wifi className="size-4" /> : <WifiOff className="size-4" />}
         </div>
 
         {/* Loop indicator */}

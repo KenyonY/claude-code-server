@@ -21,12 +21,22 @@ from fastapi.responses import FileResponse
 
 from .models import AgentConfig
 from .router import create_router
+from .store import SessionStore
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
 
-def create_app(config: AgentConfig | None = None) -> FastAPI:
-    """Create a standalone FastAPI application."""
+def create_app(
+    config: AgentConfig | None = None,
+    data_dir: str | Path | None = None,
+) -> FastAPI:
+    """Create a standalone FastAPI application.
+
+    data_dir: directory for the SQLite sessions database.
+              Defaults to {working_dir}/.ccs-data.
+              Pass an empty string to disable persistence (sessions become
+              in-memory only and /api/sessions returns 503).
+    """
     app = FastAPI(title="Claude Code Server")
 
     app.add_middleware(
@@ -36,7 +46,13 @@ def create_app(config: AgentConfig | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    router = create_router(config=config)
+    store: SessionStore | None = None
+    if data_dir != "":
+        cfg = config or AgentConfig()
+        base = Path(data_dir) if data_dir else Path(cfg.working_dir) / ".ccs-data"
+        store = SessionStore(base / "sessions.db")
+
+    router = create_router(config=config, store=store)
     app.include_router(router, prefix="/api")
 
     # Serve bundled frontend (exists after pip install)
@@ -94,6 +110,11 @@ def main() -> None:
         default=os.environ.get("CCS_PASSWORD", "yao"),
         help="Login password (default: yao, env: CCS_PASSWORD)",
     )
+    parser.add_argument(
+        "--data-dir",
+        default=None,
+        help="Directory for sessions.db (default: {working_dir}/.ccs-data)",
+    )
     args = parser.parse_args()
 
     system_prompt = args.system_prompt
@@ -114,7 +135,7 @@ def main() -> None:
         password=args.password,
     )
 
-    app = create_app(config)
+    app = create_app(config, data_dir=args.data_dir)
     uvicorn.run(app, host=args.host, port=args.port)
 
 
