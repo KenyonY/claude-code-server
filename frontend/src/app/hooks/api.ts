@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authHeaders, setToken, clearToken } from '../queryClient'
 
+/* Note: a useHealth/refetchInterval polling hook used to live here.
+ * It was unused dead code (Chat.tsx had its own setInterval), and the
+ * indicator it fed never carried real signal — every send already
+ * surfaces connectivity errors. Removed to stop the noise on the wire. */
+
 /* ==================== Auth ==================== */
 
 export const AUTH_QUERY_KEY = ['auth'] as const
@@ -52,25 +57,3 @@ export function useLogout() {
   }
 }
 
-/* ==================== Health ==================== */
-
-export type HealthStatus = 'connected' | 'disconnected'
-
-async function fetchHealth(): Promise<HealthStatus> {
-  try {
-    const r = await fetch('/api/health')
-    return r.ok ? 'connected' : 'disconnected'
-  } catch {
-    return 'disconnected'
-  }
-}
-
-export function useHealth() {
-  return useQuery({
-    queryKey: ['health'],
-    queryFn: fetchHealth,
-    refetchInterval: 15_000,
-    staleTime: 0,
-    retry: false,
-  })
-}

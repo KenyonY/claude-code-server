@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Timer, X, Wifi, WifiOff, Download, Settings } from 'lucide-react'
+import { Timer, X, Download, Settings } from 'lucide-react'
 import ChatMessages from './ChatMessages'
 import ChatInput from './ChatInput'
 import ToastContainer from './Toast'
@@ -43,28 +43,6 @@ export interface ChatProps extends ChatConfig {
    * When omitted, the inline modal is shown for backward compatibility.
    */
   onOpenSettings?: () => void
-}
-
-/** Poll backend health every 15s */
-function useConnectionStatus(apiBase: string) {
-  const [connected, setConnected] = useState(true)
-
-  const check = useCallback(async () => {
-    try {
-      const resp = await fetch(apiBase.replace(/\/$/, '') + '/health', { signal: AbortSignal.timeout(3000) })
-      setConnected(resp.ok)
-    } catch {
-      setConnected(false)
-    }
-  }, [apiBase])
-
-  useEffect(() => {
-    check()
-    const id = setInterval(check, 15000)
-    return () => clearInterval(id)
-  }, [check])
-
-  return connected
 }
 
 export default function Chat({
@@ -110,8 +88,6 @@ export default function Chat({
     setPromptSettings({ systemPrompt: spDraft.trim(), appendSystemPrompt: aspDraft.trim() })
     setShowSettings(false)
   }
-
-  const connected = useConnectionStatus(config.apiBase)
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -219,14 +195,6 @@ export default function Chat({
             <Download className="size-4" />
           </button>
         )}
-
-        {/* Connection status */}
-        <div
-          className={`size-7 inline-flex items-center justify-center rounded-md ${connected ? 'text-emerald-500' : 'text-destructive'}`}
-          title={connected ? 'Connected' : 'Disconnected'}
-        >
-          {connected ? <Wifi className="size-4" /> : <WifiOff className="size-4" />}
-        </div>
 
         {/* Loop indicator */}
         {loopState && (
